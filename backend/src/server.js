@@ -6,7 +6,7 @@ import {serve} from "inngest/express";
 import { inngest, functions } from "./lib/inngest.js"
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 3000;
 
 app.use(express.json());// Middleware to parse JSON bodies
 app.use(cors({origin:ENV.CLIENT_URL, credentials:true})); // Enable CORS for the specified client URL with credentials support
