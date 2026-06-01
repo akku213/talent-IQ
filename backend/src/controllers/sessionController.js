@@ -2,6 +2,7 @@ import { chatClient, streamClient } from "../lib/stream.js";
 import Session from "../models/Session.js";
 
 export async function createSession(req, res) {
+  let session = null;
   try {
     const { problem, difficulty } = req.body;
     const userId = req.user._id;
@@ -15,28 +16,48 @@ export async function createSession(req, res) {
     const callId = `session_${Date.now()}_${Math.random().toString(36).substring(7)}`;
 
     // create session in db
-    const session = await Session.create({ problem, difficulty, host: userId, callId });
+    session = await Session.create({ problem, difficulty, host: userId, callId });
 
     // create stream video call
-    await streamClient.video.call("default", callId).getOrCreate({
-      data: {
-        created_by_id: clerkId,
-        custom: { problem, difficulty, sessionId: session._id.toString() },
-      },
-    });
+    try {
+      await streamClient.video.call("default", callId).getOrCreate({
+        data: {
+          created_by_id: clerkId,
+          custom: { problem, difficulty, sessionId: session._id.toString() },
+        },
+      });
+    } catch (streamError) {
+      console.log("Error creating Stream video call:", streamError.message);
+      await Session.findByIdAndDelete(session._id);
+      return res.status(500).json({ message: "Failed to create video room. Please try again." });
+    }
 
     // chat messaging
-    const channel = chatClient.channel("messaging", callId, {
-      name: `${problem} Session`,
-      created_by_id: clerkId,
-      members: [clerkId],
-    });
-
-    await channel.create();
+    try {
+      const channel = chatClient.channel("messaging", callId, {
+        name: `${problem} Session`,
+        created_by_id: clerkId,
+        members: [clerkId],
+      });
+      await channel.create();
+    } catch (chatError) {
+      console.log("Error creating Stream chat channel:", chatError.message);
+      // Clean up video call
+      try {
+        await streamClient.video.call("default", callId).delete({ hard: true });
+      } catch (e) {
+        console.log("Error cleaning up video call:", e.message);
+      }
+      await Session.findByIdAndDelete(session._id);
+      return res.status(500).json({ message: "Failed to create chat channel. Please try again." });
+    }
 
     res.status(201).json({ session });
   } catch (error) {
     console.log("Error in createSession controller:", error.message);
+    if (session) {
+      await Session.findByIdAndDelete(session._id);
+    }
     res.status(500).json({ message: "Internal Server Error" });
   }
 }
