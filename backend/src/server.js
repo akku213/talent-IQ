@@ -18,6 +18,14 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const projectRoot = path.resolve(__dirname, "../..");
 
+console.log("=== Path Debug Info ===");
+console.log("__filename:", __filename);
+console.log("__dirname:", __dirname);
+console.log("projectRoot:", projectRoot);
+console.log("frontend dist path:", path.join(projectRoot, "frontend/dist"));
+console.log("index.html path:", path.join(projectRoot, "frontend/dist/index.html"));
+console.log("======================");
+
 // middleware
 app.use(express.json());
 // credentials:true meaning?? => server allows a browser to include cookies on request
